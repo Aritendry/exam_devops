@@ -1,0 +1,77 @@
+services:
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: student-mlops-mlflow
+    env_file:
+      - .env
+    command:
+      [
+        "mlflow",
+        "ui",
+        "--backend-store-uri",
+        "/app/mlruns",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "5000",
+      ]
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    volumes:
+      - ./mlruns:/app/mlruns
+
+  trainer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: student-mlops-trainer
+    env_file:
+      - .env
+    command: ["python", "-m", "src.train"]
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./mlruns:/app/mlruns
+    depends_on:
+      - mlflow
+    profiles:
+      - training
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: student-mlops-api
+    env_file:
+      - .env
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./mlruns:/app/mlruns
+    depends_on:
+      - mlflow
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: student-mlops-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      api:
+        condition: service_healthy

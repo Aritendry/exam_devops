@@ -1,0 +1,17 @@
+# Data & ML
+pandas
+scikit-learn
+mlflow
+joblib
+
+# API
+fastapi
+uvicorn
+python-multipart
+prometheus-client
+
+# Tests & Qualité
+pytest
+httpx
+flake8
+black
