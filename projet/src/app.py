@@ -11,7 +11,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.predict import load_model, predict_records
-from src.train import EXAMPLE_RECORD, FEATURE_COLUMNS, resolve_artifact_dir
+from src.train import resolve_artifact_dir
 
 REQUEST_COUNT = Counter(
     "student_api_requests_total",
@@ -51,6 +51,315 @@ class BatchPredictionRequest(BaseModel):
     records: list[StudentFeatures] = Field(..., min_length=1)
 
 
+def build_demo_page() -> str:
+    lines = [
+        "<!DOCTYPE html>",
+        '<html lang="fr">',
+        "<head>",
+        '  <meta charset="UTF-8" />',
+        (
+            '  <meta name="viewport" content="width=device-width, '
+            'initial-scale=1.0" />'
+        ),
+        "  <title>Student Score Predictor</title>",
+        "  <style>",
+        "    :root {",
+        "      --bg: #f4efe6;",
+        "      --panel: #fffdf8;",
+        "      --ink: #1f2937;",
+        "      --muted: #6b7280;",
+        "      --accent: #0f766e;",
+        "      --accent-2: #d97706;",
+        "      --border: #e5dccf;",
+        "    }",
+        "    * { box-sizing: border-box; }",
+        "    body {",
+        "      margin: 0;",
+        '      font-family: "Segoe UI", sans-serif;',
+        "      color: var(--ink);",
+        "      background:",
+        "        radial-gradient(circle at top left, #fde68a 0, transparent 28%),",
+        (
+            "        radial-gradient("
+            "circle at bottom right, #99f6e4 0, transparent 24%),"
+        ),
+        "        var(--bg);",
+        "    }",
+        "    .wrap {",
+        "      max-width: 980px;",
+        "      margin: 0 auto;",
+        "      padding: 32px 20px 48px;",
+        "    }",
+        "    .hero { margin-bottom: 24px; }",
+        "    h1 { margin: 0 0 10px; font-size: 2.2rem; }",
+        "    .hero p { margin: 0; color: var(--muted); line-height: 1.5; }",
+        "    .card {",
+        "      background: var(--panel);",
+        "      border: 1px solid var(--border);",
+        "      border-radius: 20px;",
+        "      padding: 24px;",
+        "      box-shadow: 0 18px 40px rgba(31, 41, 55, 0.08);",
+        "    }",
+        "    .grid {",
+        "      display: grid;",
+        "      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));",
+        "      gap: 16px;",
+        "    }",
+        "    label { display: block; font-weight: 600; margin-bottom: 6px; }",
+        "    .hint {",
+        "      display: block;",
+        "      font-size: 0.85rem;",
+        "      color: var(--muted);",
+        "      margin-bottom: 8px;",
+        "    }",
+        "    input, select, button {",
+        "      width: 100%;",
+        "      border-radius: 12px;",
+        "      border: 1px solid #d9cdbf;",
+        "      padding: 12px 14px;",
+        "      font-size: 1rem;",
+        "      background: #fff;",
+        "    }",
+        "    input:focus, select:focus {",
+        "      outline: 2px solid rgba(15, 118, 110, 0.18);",
+        "      border-color: var(--accent);",
+        "    }",
+        "    .actions {",
+        "      margin-top: 20px;",
+        "      display: flex;",
+        "      gap: 12px;",
+        "      flex-wrap: wrap;",
+        "    }",
+        "    button {",
+        "      width: auto;",
+        "      min-width: 180px;",
+        "      background: var(--accent);",
+        "      color: #fff;",
+        "      border: none;",
+        "      font-weight: 700;",
+        "      cursor: pointer;",
+        "    }",
+        "    button.secondary { background: var(--accent-2); }",
+        "    .result {",
+        "      margin-top: 24px;",
+        "      padding: 18px;",
+        "      border-radius: 16px;",
+        "      background: #f8fafc;",
+        "      border: 1px dashed #cbd5e1;",
+        "    }",
+        "    .result strong { font-size: 1.6rem; color: var(--accent); }",
+        "    .error { color: #b91c1c; font-weight: 600; }",
+        "  </style>",
+        "</head>",
+        "<body>",
+        '  <div class="wrap">',
+        '    <div class="hero">',
+        "      <h1>Prediction visuelle du score final</h1>",
+        "      <p>",
+        (
+            "        Remplis les champs avec des valeurs valides, "
+            "puis l'API FastAPI"
+        ),
+        (
+            "        enverra la demande au modele pour predire le "
+            "<code>Final_Exam_Score</code>."
+        ),
+        "      </p>",
+        "    </div>",
+        '    <div class="card">',
+        '      <form id="predict-form">',
+        '        <div class="grid">',
+        (
+            '          <div><label for="Hours_Studied">Hours_Studied</label>'
+            '<span class="hint">Nombre &gt;= 0. Exemple: 22</span>'
+            '<input id="Hours_Studied" name="Hours_Studied" type="number" '
+            'min="0" step="0.1" value="22" required /></div>'
+        ),
+        (
+            '          <div><label for="Attendance">Attendance</label>'
+            '<span class="hint">Pourcentage entre 0 et 100. Exemple: 91</span>'
+            '<input id="Attendance" name="Attendance" type="number" min="0" '
+            'max="100" step="0.1" value="91" required /></div>'
+        ),
+        (
+            '          <div><label for="Sleep_Hours">Sleep_Hours</label>'
+            '<span class="hint">Heures entre 0 et 24. Exemple: 7.4</span>'
+            '<input id="Sleep_Hours" name="Sleep_Hours" type="number" min="0" '
+            'max="24" step="0.1" value="7.4" required /></div>'
+        ),
+        (
+            '          <div><label for="Previous_Scores">Previous_Scores</label>'
+            '<span class="hint">Note precedente entre 0 et 100. '
+            'Exemple: 74</span><input id="Previous_Scores" '
+            'name="Previous_Scores" type="number" min="0" max="100" '
+            'step="0.1" value="74" required /></div>'
+        ),
+        (
+            '          <div><label for="Tutoring_Sessions">'
+            'Tutoring_Sessions</label><span class="hint">Nombre entier '
+            '&gt;= 0. Exemple: 2</span><input id="Tutoring_Sessions" '
+            'name="Tutoring_Sessions" type="number" min="0" step="1" '
+            'value="2" required /></div>'
+        ),
+        (
+            '          <div><label for="Parental_Involvement">'
+            'Parental_Involvement</label><span class="hint">Choisir: '
+            'Low, Medium, High</span><select id="Parental_Involvement" '
+            'name="Parental_Involvement" required><option value="Low">Low'
+            '</option><option value="Medium" selected>Medium</option>'
+            '<option value="High">High</option></select></div>'
+        ),
+        (
+            '          <div><label for="Access_to_Resources">'
+            'Access_to_Resources</label><span class="hint">Choisir: Low, '
+            'Medium, High</span><select id="Access_to_Resources" '
+            'name="Access_to_Resources" required><option value="Low">Low'
+            '</option><option value="Medium">Medium</option><option '
+            'value="High" selected>High</option></select></div>'
+        ),
+        (
+            '          <div><label for="Extracurricular_Activities">'
+            'Extracurricular_Activities</label><span class="hint">Choisir: '
+            'Yes ou No</span><select id="Extracurricular_Activities" '
+            'name="Extracurricular_Activities" required><option value="Yes" '
+            'selected>Yes</option><option value="No">No</option></select></div>'
+        ),
+        (
+            '          <div><label for="Motivation_Level">'
+            'Motivation_Level</label><span class="hint">Choisir: Low, '
+            'Medium, High</span><select id="Motivation_Level" '
+            'name="Motivation_Level" required><option value="Low">Low</option>'
+            '<option value="Medium">Medium</option><option value="High" '
+            'selected>High</option></select></div>'
+        ),
+        (
+            '          <div><label for="Internet_Access">Internet_Access'
+            '</label><span class="hint">Choisir: Yes ou No</span><select '
+            'id="Internet_Access" name="Internet_Access" required><option '
+            'value="Yes" selected>Yes</option><option value="No">No</option>'
+            "</select></div>"
+        ),
+        "        </div>",
+        '        <div class="actions">',
+        '          <button type="submit">Predire le score final</button>',
+        (
+            '          <button type="button" class="secondary" '
+            'id="fill-example">Remettre l\'exemple</button>'
+        ),
+        "        </div>",
+        "      </form>",
+        '      <div class="result" id="result">',
+        "        Le score predit s'affichera ici apres soumission.",
+        "      </div>",
+        "    </div>",
+        "  </div>",
+        "  <script>",
+        "    const example = {",
+        "      Hours_Studied: 22.0,",
+        "      Attendance: 91.0,",
+        "      Sleep_Hours: 7.4,",
+        "      Previous_Scores: 74.0,",
+        "      Tutoring_Sessions: 2,",
+        '      Parental_Involvement: "Medium",',
+        '      Access_to_Resources: "High",',
+        '      Extracurricular_Activities: "Yes",',
+        '      Motivation_Level: "High",',
+        '      Internet_Access: "Yes"',
+        "    };",
+        (
+            '    const form = document.getElementById("predict-form");'
+        ),
+        '    const result = document.getElementById("result");',
+        (
+            '    const fillExampleButton = '
+            'document.getElementById("fill-example");'
+        ),
+        '    fillExampleButton.addEventListener("click", () => {',
+        "      Object.entries(example).forEach(([key, value]) => {",
+        "        const field = document.getElementById(key);",
+        "        if (field) { field.value = value; }",
+        "      });",
+        (
+            '      result.innerHTML = "Exemple recharge. Tu peux lancer une '
+            'prediction.";'
+        ),
+        "    });",
+        '    form.addEventListener("submit", async (event) => {',
+        "      event.preventDefault();",
+        "      const payload = {",
+        (
+            '        Hours_Studied: Number('
+            'document.getElementById("Hours_Studied").value),'
+        ),
+        (
+            '        Attendance: Number('
+            'document.getElementById("Attendance").value),'
+        ),
+        (
+            '        Sleep_Hours: Number('
+            'document.getElementById("Sleep_Hours").value),'
+        ),
+        (
+            '        Previous_Scores: Number('
+            'document.getElementById("Previous_Scores").value),'
+        ),
+        (
+            '        Tutoring_Sessions: Number('
+            'document.getElementById("Tutoring_Sessions").value),'
+        ),
+        (
+            '        Parental_Involvement: '
+            'document.getElementById("Parental_Involvement").value,'
+        ),
+        (
+            '        Access_to_Resources: '
+            'document.getElementById("Access_to_Resources").value,'
+        ),
+        (
+            '        Extracurricular_Activities: '
+            'document.getElementById("Extracurricular_Activities").value,'
+        ),
+        (
+            '        Motivation_Level: '
+            'document.getElementById("Motivation_Level").value,'
+        ),
+        (
+            '        Internet_Access: '
+            'document.getElementById("Internet_Access").value'
+        ),
+        "      };",
+        '      result.innerHTML = "Prediction en cours...";',
+        "      try {",
+        '        const response = await fetch("/predict", {',
+        '          method: "POST",',
+        '          headers: { "Content-Type": "application/json" },',
+        "          body: JSON.stringify(payload)",
+        "        });",
+        "        const data = await response.json();",
+        "        if (!response.ok) {",
+        (
+            '          result.innerHTML = `<span class="error">Erreur API: '
+            '${JSON.stringify(data)}</span>`;'
+        ),
+        "          return;",
+        "        }",
+        "        result.innerHTML =",
+        '          `Score final predit: <strong>${data.prediction}</strong><br/>` +',
+        '          `Modele utilise: <code>${data.model_name}</code>`;',
+        "      } catch (error) {",
+        (
+            '        result.innerHTML = `<span class="error">Erreur reseau: '
+            '${error.message}</span>`;'
+        ),
+        "      }",
+        "    });",
+        "  </script>",
+        "</body>",
+        "</html>",
+    ]
+    return "\n".join(lines)
+
+
 def create_app() -> FastAPI:
     artifact_dir = resolve_artifact_dir()
     auto_train = os.getenv("AUTO_TRAIN_ON_STARTUP", "true").lower() == "true"
@@ -82,288 +391,7 @@ def create_app() -> FastAPI:
     @app.get("/")
     async def root() -> HTMLResponse:
         REQUEST_COUNT.inc()
-        html = """
-        <!DOCTYPE html>
-        <html lang="fr">
-        <head>
-          <meta charset="UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>Student Score Predictor</title>
-          <style>
-            :root {
-              --bg: #f4efe6;
-              --panel: #fffdf8;
-              --ink: #1f2937;
-              --muted: #6b7280;
-              --accent: #0f766e;
-              --accent-2: #d97706;
-              --border: #e5dccf;
-            }
-            * { box-sizing: border-box; }
-            body {
-              margin: 0;
-              font-family: "Segoe UI", sans-serif;
-              color: var(--ink);
-              background:
-                radial-gradient(circle at top left, #fde68a 0, transparent 28%),
-                radial-gradient(circle at bottom right, #99f6e4 0, transparent 24%),
-                var(--bg);
-            }
-            .wrap {
-              max-width: 980px;
-              margin: 0 auto;
-              padding: 32px 20px 48px;
-            }
-            .hero {
-              margin-bottom: 24px;
-            }
-            h1 {
-              margin: 0 0 10px;
-              font-size: 2.2rem;
-            }
-            .hero p {
-              margin: 0;
-              color: var(--muted);
-              line-height: 1.5;
-            }
-            .card {
-              background: var(--panel);
-              border: 1px solid var(--border);
-              border-radius: 20px;
-              padding: 24px;
-              box-shadow: 0 18px 40px rgba(31, 41, 55, 0.08);
-            }
-            .grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-              gap: 16px;
-            }
-            label {
-              display: block;
-              font-weight: 600;
-              margin-bottom: 6px;
-            }
-            .hint {
-              display: block;
-              font-size: 0.85rem;
-              color: var(--muted);
-              margin-bottom: 8px;
-            }
-            input, select, button {
-              width: 100%;
-              border-radius: 12px;
-              border: 1px solid #d9cdbf;
-              padding: 12px 14px;
-              font-size: 1rem;
-              background: #fff;
-            }
-            input:focus, select:focus {
-              outline: 2px solid rgba(15, 118, 110, 0.18);
-              border-color: var(--accent);
-            }
-            .actions {
-              margin-top: 20px;
-              display: flex;
-              gap: 12px;
-              flex-wrap: wrap;
-            }
-            button {
-              width: auto;
-              min-width: 180px;
-              background: var(--accent);
-              color: #fff;
-              border: none;
-              font-weight: 700;
-              cursor: pointer;
-            }
-            button.secondary {
-              background: var(--accent-2);
-            }
-            .result {
-              margin-top: 24px;
-              padding: 18px;
-              border-radius: 16px;
-              background: #f8fafc;
-              border: 1px dashed #cbd5e1;
-            }
-            .result strong {
-              font-size: 1.6rem;
-              color: var(--accent);
-            }
-            .error {
-              color: #b91c1c;
-              font-weight: 600;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="wrap">
-            <div class="hero">
-              <h1>Prediction visuelle du score final</h1>
-              <p>
-                Remplis les champs avec des valeurs valides, puis l'API FastAPI
-                enverra la demande au modele pour predire le <code>Final_Exam_Score</code>.
-              </p>
-            </div>
-
-            <div class="card">
-              <form id="predict-form">
-                <div class="grid">
-                  <div>
-                    <label for="Hours_Studied">Hours_Studied</label>
-                    <span class="hint">Nombre >= 0. Exemple: 22</span>
-                    <input id="Hours_Studied" name="Hours_Studied" type="number" min="0" step="0.1" value="22" required />
-                  </div>
-                  <div>
-                    <label for="Attendance">Attendance</label>
-                    <span class="hint">Pourcentage entre 0 et 100. Exemple: 91</span>
-                    <input id="Attendance" name="Attendance" type="number" min="0" max="100" step="0.1" value="91" required />
-                  </div>
-                  <div>
-                    <label for="Sleep_Hours">Sleep_Hours</label>
-                    <span class="hint">Heures entre 0 et 24. Exemple: 7.4</span>
-                    <input id="Sleep_Hours" name="Sleep_Hours" type="number" min="0" max="24" step="0.1" value="7.4" required />
-                  </div>
-                  <div>
-                    <label for="Previous_Scores">Previous_Scores</label>
-                    <span class="hint">Note precedente entre 0 et 100. Exemple: 74</span>
-                    <input id="Previous_Scores" name="Previous_Scores" type="number" min="0" max="100" step="0.1" value="74" required />
-                  </div>
-                  <div>
-                    <label for="Tutoring_Sessions">Tutoring_Sessions</label>
-                    <span class="hint">Nombre entier >= 0. Exemple: 2</span>
-                    <input id="Tutoring_Sessions" name="Tutoring_Sessions" type="number" min="0" step="1" value="2" required />
-                  </div>
-                  <div>
-                    <label for="Parental_Involvement">Parental_Involvement</label>
-                    <span class="hint">Choisir: Low, Medium, High</span>
-                    <select id="Parental_Involvement" name="Parental_Involvement" required>
-                      <option value="Low">Low</option>
-                      <option value="Medium" selected>Medium</option>
-                      <option value="High">High</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label for="Access_to_Resources">Access_to_Resources</label>
-                    <span class="hint">Choisir: Low, Medium, High</span>
-                    <select id="Access_to_Resources" name="Access_to_Resources" required>
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High" selected>High</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label for="Extracurricular_Activities">Extracurricular_Activities</label>
-                    <span class="hint">Choisir: Yes ou No</span>
-                    <select id="Extracurricular_Activities" name="Extracurricular_Activities" required>
-                      <option value="Yes" selected>Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label for="Motivation_Level">Motivation_Level</label>
-                    <span class="hint">Choisir: Low, Medium, High</span>
-                    <select id="Motivation_Level" name="Motivation_Level" required>
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High" selected>High</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label for="Internet_Access">Internet_Access</label>
-                    <span class="hint">Choisir: Yes ou No</span>
-                    <select id="Internet_Access" name="Internet_Access" required>
-                      <option value="Yes" selected>Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="actions">
-                  <button type="submit">Predire le score final</button>
-                  <button type="button" class="secondary" id="fill-example">Remettre l'exemple</button>
-                </div>
-              </form>
-
-              <div class="result" id="result">
-                Le score predit s'affichera ici apres soumission.
-              </div>
-            </div>
-          </div>
-
-          <script>
-            const example = {
-              Hours_Studied: 22.0,
-              Attendance: 91.0,
-              Sleep_Hours: 7.4,
-              Previous_Scores: 74.0,
-              Tutoring_Sessions: 2,
-              Parental_Involvement: "Medium",
-              Access_to_Resources: "High",
-              Extracurricular_Activities: "Yes",
-              Motivation_Level: "High",
-              Internet_Access: "Yes"
-            };
-
-            const form = document.getElementById("predict-form");
-            const result = document.getElementById("result");
-            const fillExampleButton = document.getElementById("fill-example");
-
-            fillExampleButton.addEventListener("click", () => {
-              Object.entries(example).forEach(([key, value]) => {
-                const field = document.getElementById(key);
-                if (field) {
-                  field.value = value;
-                }
-              });
-              result.innerHTML = "Exemple recharge. Tu peux lancer une prediction.";
-            });
-
-            form.addEventListener("submit", async (event) => {
-              event.preventDefault();
-
-              const payload = {
-                Hours_Studied: Number(document.getElementById("Hours_Studied").value),
-                Attendance: Number(document.getElementById("Attendance").value),
-                Sleep_Hours: Number(document.getElementById("Sleep_Hours").value),
-                Previous_Scores: Number(document.getElementById("Previous_Scores").value),
-                Tutoring_Sessions: Number(document.getElementById("Tutoring_Sessions").value),
-                Parental_Involvement: document.getElementById("Parental_Involvement").value,
-                Access_to_Resources: document.getElementById("Access_to_Resources").value,
-                Extracurricular_Activities: document.getElementById("Extracurricular_Activities").value,
-                Motivation_Level: document.getElementById("Motivation_Level").value,
-                Internet_Access: document.getElementById("Internet_Access").value
-              };
-
-              result.innerHTML = "Prediction en cours...";
-
-              try {
-                const response = await fetch("/predict", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(payload)
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                  result.innerHTML = `<span class="error">Erreur API: ${JSON.stringify(data)}</span>`;
-                  return;
-                }
-
-                result.innerHTML = `
-                  Score final predit: <strong>${data.prediction}</strong><br/>
-                  Modele utilise: <code>${data.model_name}</code>
-                `;
-              } catch (error) {
-                result.innerHTML = `<span class="error">Erreur reseau: ${error.message}</span>`;
-              }
-            });
-          </script>
-        </body>
-        </html>
-        """
-        return HTMLResponse(content=html)
+        return HTMLResponse(content=build_demo_page())
 
     @app.get("/health")
     async def health() -> dict[str, object]:
