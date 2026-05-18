@@ -153,9 +153,9 @@ pipeline {
             steps {
                 dir("${PROJECT_DIR}") {
                     sh """
-                        docker compose up -d mlflow
-                        docker compose --profile training up trainer
-                        docker compose up -d api prometheus
+                        docker-compose up -d mlflow
+                        docker-compose --profile training up trainer
+                        docker-compose up -d api prometheus
                     """
                 }
             }
@@ -166,7 +166,7 @@ pipeline {
         always {
             dir("${PROJECT_DIR}") {
                 sh """
-                    docker compose ps || true
+                    docker-compose ps || true
                     docker logout || true
                 """
             }
