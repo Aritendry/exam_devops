@@ -6,16 +6,20 @@ services:
     container_name: student-mlops-mlflow
     env_file:
       - .env
+    environment:
+      MLFLOW_SERVER_ALLOWED_HOSTS: "${MLFLOW_SERVER_ALLOWED_HOSTS:-mlflow,localhost:*,127.0.0.1:*,172.16.*,172.17.*,172.18.*,172.19.*,172.20.*,172.21.*,172.22.*,172.23.*,172.24.*,172.25.*,172.26.*,172.27.*,172.28.*,172.29.*,172.30.*,172.31.*,192.168.*,10.*}"
     command:
       [
         "mlflow",
-        "ui",
+        "server",
         "--backend-store-uri",
         "/app/mlruns",
         "--host",
         "0.0.0.0",
         "--port",
         "5000",
+        "--allowed-hosts",
+        "${MLFLOW_SERVER_ALLOWED_HOSTS:-mlflow,localhost:*,127.0.0.1:*,172.16.*,172.17.*,172.18.*,172.19.*,172.20.*,172.21.*,172.22.*,172.23.*,172.24.*,172.25.*,172.26.*,172.27.*,172.28.*,172.29.*,172.30.*,172.31.*,192.168.*,10.*}",
       ]
     ports:
       - "${MLFLOW_PORT:-5000}:5000"
@@ -66,12 +70,12 @@ services:
       start_period: 20s
 
   prometheus:
-    image: prom/prometheus:latest
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile
     container_name: student-mlops-prometheus
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
       api:
         condition: service_healthy
